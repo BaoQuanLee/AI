@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chuyển Đổi Tiền Tệ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --surface2:#1c2128;
+      --border:  #21262d;
+      --border2: #30363d;
+      --accent:  #58a6ff;
+      --accent2: #3fb950;
+      --muted:   #8b949e;
+      --text:    #e6edf3;
+      --textdim: #c9d1d9;
+      --red:     #f85149;
+      --radius:  14px;
+      --shadow:  0 8px 32px rgba(0,0,0,.5);
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px 64px;
+    }
+    /* Header */
+    .header { text-align: center; margin-bottom: 40px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(88,166,255,.12); color: var(--accent);
+      border: 1px solid rgba(88,166,255,.25); border-radius: 999px;
+      font-size: 11px; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; padding: 4px 12px; margin-bottom: 16px;
+    }
+    .badge-dot { width:6px; height:6px; background:var(--accent2); border-radius:50%; display:inline-block; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .header h1 { font-size: clamp(28px,5vw,44px); font-weight:700; letter-spacing:-.025em; line-height:1.1; }
+    .header h1 em { font-style:normal; color:var(--accent); }
+    .header p { margin-top:10px; color:var(--muted); font-size:14px; }
+
+    /* Card */
+    .card {
+      width:100%; max-width:520px;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:var(--shadow); padding:32px;
+    }
+
+    /* Amount */
+    .amount-row { display:flex; flex-direction:column; gap:6px; margin-bottom:20px; }
+    .field-label { font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
+    .amount-input {
+      font-family:'DM Mono',monospace; font-size:22px; font-weight:500;
+      color:var(--text); background:var(--bg); border:1px solid var(--border);
+      border-radius:10px; padding:14px 16px; width:100%;
+      transition:border-color .2s; outline:none;
+    }
+    .amount-input:focus { border-color:var(--accent); }
+    .amount-input::placeholder { color:var(--muted); }
+
+    /* Pair row */
+    .pair-row { display:grid; grid-template-columns:1fr 44px 1fr; align-items:end; gap:10px; margin-bottom:24px; }
+    .currency-group { display:flex; flex-direction:column; gap:6px; }
+
+    /* Custom dropdown */
+    .dropdown { position:relative; }
+    .dropdown-trigger {
+      width:100%; display:flex; align-items:center; gap:10px;
+      background:var(--bg); border:1px solid var(--border); border-radius:10px;
+      padding:11px 14px; cursor:pointer; transition:border-color .2s;
+      user-select:none;
+    }
+    .dropdown-trigger:hover, .dropdown-trigger.open { border-color:var(--accent); }
+    .trigger-flag { font-size:20px; line-height:1; flex-shrink:0; }
+    .trigger-info { flex:1; min-width:0; }
+    .trigger-code { font-family:'DM Mono',monospace; font-size:14px; font-weight:600; color:var(--text); }
+    .trigger-name { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .trigger-arrow { color:var(--muted); flex-shrink:0; transition:transform .2s; }
+    .dropdown-trigger.open .trigger-arrow { transform:rotate(180deg); }
+
+    .dropdown-panel {
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:100;
+      background:var(--surface2); border:1px solid var(--border2);
+      border-radius:10px; box-shadow:var(--shadow);
+      display:none; flex-direction:column; overflow:hidden;
+    }
+    .dropdown-panel.open { display:flex; }
+
+    .panel-search {
+      padding:10px 12px; border-bottom:1px solid var(--border);
+    }
+    .panel-search input {
+      width:100%; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; color:var(--text); font-size:13px;
+      padding:7px 10px; outline:none; transition:border-color .2s;
+    }
+    .panel-search input:focus { border-color:var(--accent); }
+
+    .panel-list {
+      overflow-y:auto; max-height:240px;
+    }
+    .panel-list::-webkit-scrollbar { width:5px; }
+    .panel-list::-webkit-scrollbar-track { background:transparent; }
+    .panel-list::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+
+    .panel-group-label {
+      font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+      color:var(--muted); padding:8px 14px 4px;
+    }
+    .panel-item {
+      display:flex; align-items:center; gap:10px;
+      padding:9px 14px; cursor:pointer; transition:background .15s;
+    }
+    .panel-item:hover { background:rgba(88,166,255,.08); }
+    .panel-item.selected { background:rgba(88,166,255,.13); }
+    .item-flag { font-size:18px; line-height:1; flex-shrink:0; }
+    .item-code { font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:var(--text); width:36px; flex-shrink:0; }
+    .item-name { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .panel-empty { padding:14px; font-size:13px; color:var(--muted); text-align:center; }
+
+    /* Swap */
+    .swap-btn {
+      width:44px; height:44px; background:var(--bg); border:1px solid var(--border);
+      border-radius:50%; color:var(--muted); cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:all .2s; flex-shrink:0; align-self:flex-end;
+    }
+    .swap-btn:hover { border-color:var(--accent); color:var(--accent); transform:rotate(180deg); }
+    .swap-btn svg { width:18px; height:18px; }
+
+    /* Convert btn */
+    .convert-btn {
+      width:100%; background:var(--accent); color:#fff;
+      font-family:'Inter',sans-serif; font-size:15px; font-weight:600;
+      border:none; border-radius:10px; padding:15px; cursor:pointer;
+      transition:opacity .2s, transform .1s; letter-spacing:.01em;
+    }
+    .convert-btn:hover { opacity:.88; }
+    .convert-btn:active { transform:scale(.99); }
+    .convert-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* Result */
+    .result-box {
+      margin-top:20px; background:var(--bg);
+      border:1px solid var(--border); border-radius:var(--radius);
+      padding:20px; display:none; animation:fadeUp .3s ease;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .result-box.visible { display:block; }
+    .result-flags { font-size:24px; margin-bottom:8px; }
+    .result-amount { font-family:'DM Mono',monospace; font-size:28px; font-weight:500; color:var(--accent2); line-height:1.2; }
+    .result-detail { font-size:12px; color:var(--muted); margin-top:6px; }
+    .result-rate {
+      font-size:13px; color:var(--textdim); margin-top:10px; padding-top:10px;
+      border-top:1px solid var(--border); display:flex;
+      justify-content:space-between; flex-wrap:wrap; gap:4px;
+    }
+    .result-rate span { font-family:'DM Mono',monospace; color:var(--accent); }
+
+    /* Error */
+    .error-msg {
+      margin-top:14px; background:rgba(248,81,73,.1);
+      border:1px solid rgba(248,81,73,.3); border-radius:8px;
+      padding:12px 14px; font-size:13px; color:var(--red); display:none;
+    }
+    .error-msg.visible { display:block; }
+
+    .spinner {
+      width:16px; height:16px; border:2px solid rgba(255,255,255,.3);
+      border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite;
+      display:inline-block; vertical-align:middle; margin-right:6px;
+    }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    .footer-note { margin-top:28px; font-size:11px; color:var(--muted); text-align:center; line-height:1.6; }
+    .footer-note a { color:var(--accent); text-decoration:none; }
+    .footer-note a:hover { text-decoration:underline; }
+
+    @media (max-width:400px) { .card { padding:22px 18px; } }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="badge"><span class="badge-dot"></span> Tỷ giá thực tế</div>
+  <h1>Chuyển Đổi<br/><em>Tiền Tệ</em></h1>
+  <p>Dữ liệu cập nhật từ Frankfurter API · Hơn 30 đồng tiền</p>
+</div>
+
+<div class="card">
+  <div class="amount-row">
+    <div class="field-label">Số tiền</div>
+    <input type="number" id="amount" class="amount-input" placeholder="100" value="100" min="0" step="any"/>
+  </div>
+
+  <div class="pair-row">
+    <div class="currency-group">
+      <div class="field-label">Từ</div>
+      <div class="dropdown" id="fromDropdown">
+        <div class="dropdown-trigger" id="fromTrigger">
+          <span class="trigger-flag" id="fromFlag">🇺🇸</span>
+          <div class="trigger-info">
+            <div class="trigger-code" id="fromCode">USD</div>
+            <div class="trigger-name" id="fromName">US Dollar</div>
+          </div>
+          <svg class="trigger-arrow" viewBox="0 0 12 8" width="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1l5 5 5-5"/></svg>
+        </div>
+        <div class="dropdown-panel" id="fromPanel">
+          <div class="panel-search"><input type="text" placeholder="Tìm tiền tệ..." id="fromSearch"/></div>
+          <div class="panel-list" id="fromList"></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="swap-btn" id="swapBtn" title="Hoán đổi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
+      </svg>
+    </button>
+
+    <div class="currency-group">
+      <div class="field-label">Sang</div>
+      <div class="dropdown" id="toDropdown">
+        <div class="dropdown-trigger" id="toTrigger">
+          <span class="trigger-flag" id="toFlag">🇻🇳</span>
+          <div class="trigger-info">
+            <div class="trigger-code" id="toCode">VND</div>
+            <div class="trigger-name" id="toName">Vietnamese Dong</div>
+          </div>
+          <svg class="trigger-arrow" viewBox="0 0 12 8" width="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1l5 5 5-5"/></svg>
+        </div>
+        <div class="dropdown-panel" id="toPanel">
+          <div class="panel-search"><input type="text" placeholder="Tìm tiền tệ..." id="toSearch"/></div>
+          <div class="panel-list" id="toList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="convert-btn" id="convertBtn">Quy đổi</button>
+
+  <div class="result-box" id="resultBox">
+    <div class="result-flags" id="resultFlags"></div>
+    <div class="result-amount" id="resultAmount"></div>
+    <div class="result-detail" id="resultDetail"></div>
+    <div class="result-rate" id="resultRate"></div>
+  </div>
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<div class="footer-note">
+  Powered by <a href="https://www.frankfurter.app" target="_blank" rel="noopener">Frankfurter API</a> &middot; Miễn phí &middot; Không cần API key
+</div>
+
+<script>
+// ── Currency → country code map (ISO 4217 → ISO 3166-1 alpha-2)
+const CURRENCY_COUNTRY = {
+  AED:'AE', AFN:'AF', ALL:'AL', AMD:'AM', ANG:'NL', AOA:'AO', ARS:'AR',
+  AUD:'AU', AWG:'AW', AZN:'AZ', BAM:'BA', BBD:'BB', BDT:'BD', BGN:'BG',
+  BHD:'BH', BMD:'BM', BND:'BN', BOB:'BO', BRL:'BR', BSD:'BS', BTN:'BT',
+  BWP:'BW', BYN:'BY', BZD:'BZ', CAD:'CA', CDF:'CD', CHF:'CH', CLP:'CL',
+  CNY:'CN', COP:'CO', CRC:'CR', CUP:'CU', CVE:'CV', CZK:'CZ', DJF:'DJ',
+  DKK:'DK', DOP:'DO', DZD:'DZ', EGP:'EG', ERN:'ER', ETB:'ET', EUR:'EU',
+  FJD:'FJ', FKP:'FK', GBP:'GB', GEL:'GE', GHS:'GH', GIP:'GI', GMD:'GM',
+  GNF:'GN', GTQ:'GT', GYD:'GY', HKD:'HK', HNL:'HN', HRK:'HR', HTG:'HT',
+  HUF:'HU', IDR:'ID', ILS:'IL', INR:'IN', IQD:'IQ', IRR:'IR', ISK:'IS',
+  JMD:'JM', JOD:'JO', JPY:'JP', KES:'KE', KGS:'KG', KHR:'KH', KMF:'KM',
+  KRW:'KR', KWD:'KW', KYD:'KY', KZT:'KZ', LAK:'LA', LBP:'LB', LKR:'LK',
+  LRD:'LR', LSL:'LS', LYD:'LY', MAD:'MA', MDL:'MD', MGA:'MG', MKD:'MK',
+  MMK:'MM', MNT:'MN', MOP:'MO', MRU:'MR', MUR:'MU', MVR:'MV', MWK:'MW',
+  MXN:'MX', MYR:'MY', MZN:'MZ', NAD:'NA', NGN:'NG', NIO:'NI', NOK:'NO',
+  NPR:'NP', NZD:'NZ', OMR:'OM', PAB:'PA', PEN:'PE', PGK:'PG', PHP:'PH',
+  PKR:'PK', PLN:'PL', PYG:'PY', QAR:'QA', RON:'RO', RSD:'RS', RUB:'RU',
+  RWF:'RW', SAR:'SA', SBD:'SB', SCR:'SC', SDG:'SD', SEK:'SE', SGD:'SG',
+  SHP:'SH', SLL:'SL', SOS:'SO', SRD:'SR', STN:'ST', SVC:'SV', SYP:'SY',
+  SZL:'SZ', THB:'TH', TJS:'TJ', TMT:'TM', TND:'TN', TOP:'TO', TRY:'TR',
+  TTD:'TT', TWD:'TW', TZS:'TZ', UAH:'UA', UGX:'UG', USD:'US', UYU:'UY',
+  UZS:'UZ', VES:'VE', VND:'VN', VUV:'VU', WST:'WS', XAF:'CM', XCD:'AG',
+  XOF:'SN', XPF:'PF', YER:'YE', ZAR:'ZA', ZMW:'ZM', ZWL:'ZW',
+  ISK:'IS', MKD:'MK'
+};
+
+// Convert ISO 3166-1 alpha-2 to flag emoji
+function countryToFlag(code) {
+  if (!code) return '🏳️';
+  if (code === 'EU') return '🇪🇺';
+  return code.toUpperCase().split('').map(c =>
+    String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
+  ).join('');
+}
+
+function getFlag(currency) {
+  const cc = CURRENCY_COUNTRY[currency];
+  return countryToFlag(cc);
+}
+
+const POPULAR = ['USD','EUR','VND','GBP','JPY','CNY','KRW','AUD','CAD','CHF','SGD','THB'];
+const API = 'https://api.frankfurter.app';
+
+let allCurrencies = {};
+let selectedFrom = 'USD';
+let selectedTo   = 'VND';
+
+const convertBtn  = document.getElementById('convertBtn');
+const resultBox   = document.getElementById('resultBox');
+const resultFlags = document.getElementById('resultFlags');
+const resultAmount= document.getElementById('resultAmount');
+const resultDetail= document.getElementById('resultDetail');
+const resultRate  = document.getElementById('resultRate');
+const errorMsg    = document.getElementById('errorMsg');
+const amountEl    = document.getElementById('amount');
+const swapBtn     = document.getElementById('swapBtn');
+
+// ── Dropdown logic
+function buildList(listEl, searchVal, whichSide) {
+  const q = searchVal.toLowerCase().trim();
+  const popular = POPULAR.filter(c => allCurrencies[c]);
+  const rest     = Object.keys(allCurrencies).filter(c => !POPULAR.includes(c)).sort();
+  const all = [...popular.map(c=>({c, popular:true})), ...rest.map(c=>({c,popular:false}))];
+
+  const filtered = all.filter(({c}) =>
+    c.toLowerCase().includes(q) ||
+    (allCurrencies[c]||'').toLowerCase().includes(q)
+  );
+
+  listEl.innerHTML = '';
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="panel-empty">Không tìm thấy</div>';
+    return;
+  }
+
+  let inPopular = null;
+  filtered.forEach(({c, popular}) => {
+    if (q === '') {
+      if (popular !== inPopular) {
+        inPopular = popular;
+        const lbl = document.createElement('div');
+        lbl.className = 'panel-group-label';
+        lbl.textContent = popular ? '⭐ Phổ biến' : '🌐 Tất cả';
+        listEl.appendChild(lbl);
+      }
+    }
+    const item = document.createElement('div');
+    item.className = 'panel-item' + ((whichSide==='from'?selectedFrom:selectedTo)===c?' selected':'');
+    item.innerHTML = `
+      <span class="item-flag">${getFlag(c)}</span>
+      <span class="item-code">${c}</span>
+      <span class="item-name">${allCurrencies[c]||''}</span>
+    `;
+    item.addEventListener('click', () => selectCurrency(whichSide, c));
+    listEl.appendChild(item);
+  });
+}
+
+function selectCurrency(side, code) {
+  if (side === 'from') {
+    selectedFrom = code;
+    document.getElementById('fromFlag').textContent = getFlag(code);
+    document.getElementById('fromCode').textContent = code;
+    document.getElementById('fromName').textContent = allCurrencies[code]||'';
+    closeDropdown('from');
+  } else {
+    selectedTo = code;
+    document.getElementById('toFlag').textContent = getFlag(code);
+    document.getElementById('toCode').textContent = code;
+    document.getElementById('toName').textContent = allCurrencies[code]||'';
+    closeDropdown('to');
+  }
+  resultBox.classList.remove('visible');
+  hideError();
+}
+
+function openDropdown(side) {
+  const trigger = document.getElementById(side+'Trigger');
+  const panel   = document.getElementById(side+'Panel');
+  const search  = document.getElementById(side+'Search');
+  const list    = document.getElementById(side+'List');
+  trigger.classList.add('open');
+  panel.classList.add('open');
+  search.value = '';
+  buildList(list, '', side);
+  search.focus();
+}
+
+function closeDropdown(side) {
+  document.getElementById(side+'Trigger').classList.remove('open');
+  document.getElementById(side+'Panel').classList.remove('open');
+}
+
+['from','to'].forEach(side => {
+  document.getElementById(side+'Trigger').addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = document.getElementById(side+'Panel').classList.contains('open');
+    closeDropdown('from'); closeDropdown('to');
+    if (!isOpen) openDropdown(side);
+  });
+  document.getElementById(side+'Panel').addEventListener('click', e => e.stopPropagation());
+  document.getElementById(side+'Search').addEventListener('input', e => {
+    buildList(document.getElementById(side+'List'), e.target.value, side);
+  });
+});
+
+document.addEventListener('click', () => { closeDropdown('from'); closeDropdown('to'); });
+
+// ── Init triggers display
+function initTrigger(side, code) {
+  document.getElementById(side+'Flag').textContent = getFlag(code);
+  document.getElementById(side+'Code').textContent = code;
+  document.getElementById(side+'Name').textContent = allCurrencies[code]||'';
+}
+
+// ── Load currencies
+async function loadCurrencies() {
+  convertBtn.disabled = true;
+  convertBtn.textContent = 'Đang tải danh sách...';
+  try {
+    const res = await fetch(`${API}/currencies`);
+    if (!res.ok) throw new Error('Không thể tải danh sách tiền tệ');
+    allCurrencies = await res.json();
+    initTrigger('from', selectedFrom);
+    initTrigger('to',   selectedTo);
+    convertBtn.disabled = false;
+    convertBtn.textContent = 'Quy đổi';
+  } catch(e) {
+    showError(e.message);
+    convertBtn.textContent = 'Lỗi tải dữ liệu';
+  }
+}
+
+// ── Convert
+function showError(msg) {
+  errorMsg.textContent = '⚠ ' + msg;
+  errorMsg.classList.add('visible');
+  resultBox.classList.remove('visible');
+}
+function hideError() { errorMsg.classList.remove('visible'); }
+
+async function convert() {
+  const amount = parseFloat(amountEl.value);
+  if (!amount || amount <= 0) { showError('Vui lòng nhập số tiền hợp lệ.'); return; }
+  if (selectedFrom === selectedTo) { showError('Hai đồng tiền không được giống nhau.'); return; }
+  hideError();
+  convertBtn.disabled = true;
+  convertBtn.innerHTML = '<span class="spinner"></span>Đang tính...';
+  try {
+    const res = await fetch(`${API}/latest?amount=${amount}&from=${selectedFrom}&to=${selectedTo}`);
+    if (!res.ok) throw new Error('Không thể lấy tỷ giá. Vui lòng thử lại.');
+    const data = await res.json();
+    const converted = data.rates[selectedTo];
+    const rate = converted / amount;
+
+    const fmt = (n, currency) => {
+      try {
+        return new Intl.NumberFormat('vi-VN', {
+          style:'currency', currency,
+          maximumFractionDigits: ['VND','JPY','KRW'].includes(currency) ? 0 : 4
+        }).format(n);
+      } catch { return n.toLocaleString('vi-VN') + ' ' + currency; }
+    };
+
+    resultFlags.textContent = `${getFlag(selectedFrom)} → ${getFlag(selectedTo)}`;
+    resultAmount.textContent = fmt(converted, selectedTo);
+    resultDetail.textContent = `${fmt(amount, selectedFrom)} = ${fmt(converted, selectedTo)}`;
+    resultRate.innerHTML = `
+      <div>${getFlag(selectedFrom)} 1 ${selectedFrom} = <span>${rate.toFixed(6)} ${selectedTo}</span></div>
+      <div>${getFlag(selectedTo)} 1 ${selectedTo} = <span>${(1/rate).toFixed(6)} ${selectedFrom}</span></div>
+    `;
+    resultBox.classList.add('visible');
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    convertBtn.disabled = false;
+    convertBtn.textContent = 'Quy đổi';
+  }
+}
+
+swapBtn.addEventListener('click', () => {
+  [selectedFrom, selectedTo] = [selectedTo, selectedFrom];
+  initTrigger('from', selectedFrom);
+  initTrigger('to',   selectedTo);
+  resultBox.classList.remove('visible');
+  hideError();
+});
+
+convertBtn.addEventListener('click', convert);
+amountEl.addEventListener('keydown', e => { if (e.key==='Enter') convert(); });
+
+loadCurrencies();
+</script>
+</body>
+</html>
